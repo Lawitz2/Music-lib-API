@@ -34,6 +34,7 @@ func New(config *Config) *Database {
 	return &Database{config: config}
 }
 
+// открывает соединение с базой данных
 func (db *Database) Open() error {
 	dbConn, err := pgxpool.New(context.Background(), db.config.ConnString())
 	if err != nil {
@@ -51,6 +52,8 @@ func (db *Database) Open() error {
 
 	db.dbConn = dbConn
 
+	// устанавливаем формат даты на текущую сессию подключения
+	// для более удобной работы с датами
 	_, err = db.dbConn.Exec(context.Background(), `set datestyle to iso,dmy`)
 	if err != nil {
 		return err
@@ -86,6 +89,7 @@ func (db *Database) fixDBVersion() error {
 	return nil
 }
 
+// выдает все песни, удовлетворяющие параметрам фильтрации (если они есть)
 func (db *Database) ListAllLibrary(s Song, offset, limit string) (Library, error) {
 	q := `select groups.author_name, songs.song_name, songs.release_date::text, songs.song_text, songs.link 
 from songs inner join groups using (author_id) where (
@@ -119,6 +123,8 @@ from songs inner join groups using (author_id) where (
 		return nil, err
 	}
 
+	// песни будут возвращены слайсом, чтобы можно было их закодировать
+	// в один json и отправить клиенту
 	sTmp := Song{}
 	lib := make(Library, 0, 64)
 
@@ -132,6 +138,7 @@ from songs inner join groups using (author_id) where (
 	return lib, nil
 }
 
+// удаление определенной песни из базы данных
 func (db *Database) DeleteSong(author_name, songName string) (string, error) {
 	tag, err := db.dbConn.Exec(context.Background(), `delete from songs where song_name=$1 and author_id in (select author_id from groups where author_name=$2)`, songName, author_name)
 	slog.Debug("deleting from DB", "db response", tag.String())
@@ -142,19 +149,24 @@ func (db *Database) DeleteSong(author_name, songName string) (string, error) {
 	return tag.String(), nil
 }
 
+// добавление песни в базу данных
 func (db *Database) AddSong(s Song) error {
 	var id int
+	// проверяем, есть ли уже такой исполнитель в бд
+	// если есть, получаем его id
 	err := db.dbConn.QueryRow(context.Background(), `select (author_id) from groups where author_name=$1`, "author_name_test_1").Scan(&id)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
+		// если нет - добавляем его, с получением его id
 		err = db.dbConn.QueryRow(context.Background(), `insert into groups (author_name) values ($1) returning author_id`, s.Group).Scan(&id)
 		if err != nil {
 			return err
 		}
 	}
 
+	// добавляем данные о песне в бд с указанием полученного выше id исполнителя
 	tag, err := db.dbConn.Exec(context.Background(), `insert into songs (author_id, song_name, release_date, song_text, link) 
 values ($1, $2, $3, $4, $5)`, id, s.SongName, s.ReleaseDate, s.Text, s.Link)
 	slog.Debug("adding song to db", "db reply", tag.String())
@@ -164,6 +176,10 @@ values ($1, $2, $3, $4, $5)`, id, s.SongName, s.ReleaseDate, s.Text, s.Link)
 	return nil
 }
 
+// обновление имени исполнителя в бд
+// будет выполнено только если в query запросе и в теле запроса
+// указаны только данные исполнителя
+// (в query - текущее имя, в теле - имя, на которое поменять)
 func (db *Database) UpdateGroupName(author_name string, s Song) error {
 	tag, err := db.dbConn.Exec(context.Background(), `update groups
 set author_name=$1 where author_name=$2`, s.Group, author_name)
@@ -174,6 +190,13 @@ set author_name=$1 where author_name=$2`, s.Group, author_name)
 	return nil
 }
 
+// обновление данных песни, будет выполнено вместо UpdateGroupName при любой
+// другой комбинации предоставленных данных
+// В данном случае если в теле предоставлено новое имя исполнителя, то
+// мы заменим текущий id исполнителя на id новго исполнителя. Если же новый
+// исполнитель не найден в базе данных - он будет добавлен
+// Если в поле структуры указано "no_data" (стандартное значение) - эти данные обновляться не будут,
+// позволяя записать пустое значение в базу данных (за исключением id исполнителя и названия песни)
 func (db *Database) UpdateSongDetails(author_name, song_name string, s Song) error {
 	query := `update songs
 set`
@@ -216,6 +239,7 @@ set`
 	return nil
 }
 
+// получение текста песни
 func (db *Database) GetSongText(author_name, songName string) (string, error) {
 	row := db.dbConn.QueryRow(context.Background(), `select songs.song_text from songs 
     inner join groups using (author_id) where groups.author_name=$1 and songs.song_name=$2`, author_name, songName)

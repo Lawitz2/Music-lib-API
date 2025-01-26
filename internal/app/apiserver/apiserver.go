@@ -137,6 +137,9 @@ func (s *APIServer) listLibrary() http.HandlerFunc {
 	}
 }
 
+// удаление определенной песни
+// если такая песня не была найдена - возвращаем 404
+// если она была найдена и удалена - 200
 func (s *APIServer) deleteSong() http.HandlerFunc {
 	var author, songName string
 
@@ -229,6 +232,7 @@ func (s *APIServer) showSongText() http.HandlerFunc {
 	}
 }
 
+// запрос на добавление песни в базу данных
 func (s *APIServer) addSong() http.HandlerFunc {
 	var song db.Song
 	var body []byte
@@ -255,6 +259,7 @@ func (s *APIServer) addSong() http.HandlerFunc {
 		}
 		slog.Debug("request body", "struct", song)
 
+		// формируем запрос во внешний АПИ для получения данных о песне
 		reqURL = fmt.Sprintf("%s?group=%s&song=%s", externalURL, song.Group, song.SongName)
 		slog.Debug("accessing external api", "URL", reqURL)
 		timer := time.Second
