@@ -4,7 +4,7 @@ info:
   description: Music library
   version: 1.0.0
 paths:
-  /library/updatev2:
+  /library/update:
     patch:
       description: update contents of the song
       parameters:
