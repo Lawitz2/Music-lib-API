@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  build:
+    go build -v ./cmd/apiserver
+  try:
+    deps: [build]
+    cmds:
+      - apiserver.exe
+  run:
+    cmds:
+      - apiserver.exe
+  debug:
+    cmds:
+      - apiserver.exe -d
+
+

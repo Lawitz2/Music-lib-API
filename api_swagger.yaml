@@ -1,0 +1,197 @@
+openapi: 3.1.0
+info:
+  title: Music library
+  description: Music library
+  version: 1.0.0
+paths:
+  /library/updatev2:
+    patch:
+      description: update contents of the song
+      parameters:
+        - in: query
+          name: song
+          description: name of the song
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: author
+          description: name of the song author
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Song'
+      responses:
+        200:
+          description: ok
+        400:
+          description: bad request
+        500:
+          description: internal server error
+  /library/delete:
+    delete:
+      description: delete song from the database
+      parameters:
+        - in: query
+          name: song
+          description: name of the song
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: author
+          description: name of the song author
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: ok
+        400:
+          description: bad request
+        500:
+          description: Internal server error
+  /library/add:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddSongObj'
+      description: New endpoint
+      responses:
+        200:
+          description: ok
+        400:
+          description: Bad request
+        500:
+          description: Internal server error
+  /library/all:
+    get:
+      description: get a list of songs filtered by parameters
+      parameters:
+        - in: query
+          name: author
+          description: name of the song author
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: song
+          description: name of the song
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: releaseDate
+          description: release date dd-mm-yyyy
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: text
+          description: text of the song
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: link
+          description: link to the song
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: offset
+          description: skip first n songs
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          description: limit of how many songs you need
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+        404:
+          description: Not found
+        500:
+          description: Internal server error
+  /library/text:
+    get:
+      parameters:
+        - in: query
+          name: verse
+          description: which verse of the song to display
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: song
+          description: name of the song
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: author
+          description: name of the song author
+          required: true
+          schema:
+            type: string
+      responses:
+        500:
+          description: Internal server error
+        400:
+          description: Bad request
+        200:
+          description: ok
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/Text'
+
+components:
+  schemas:
+    Song:
+      type: object
+      properties:
+        group:
+          type: string
+          example: Muse
+        song:
+          type: string
+          example: Song_name
+        releaseDate:
+          type: string
+          example: 27.06.1997
+        text:
+          type: string
+          example: Snow is falling down on this glorious land\nColours fading, turning into white again\nTo fallen heroes angels sing, they cry their winter tears\nEndless morning days will turn to years\n\nSo this is goodbye\nI take leave of you and\nSpread your wings and you will fly away now\nFly away now
+        link:
+          type: string
+          example: https://www.youtube.com/watch?v=GawSTUaStV8
+    AddSongObj:
+      required:
+        - group
+        - song
+      type: object
+      properties:
+        group:
+          type: string
+        song:
+          type: string
+    Text:
+      description: text of a song
+      type: string
